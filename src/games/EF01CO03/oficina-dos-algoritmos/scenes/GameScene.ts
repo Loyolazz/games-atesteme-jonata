@@ -1,7 +1,13 @@
 import Phaser from 'phaser';
 
 import { EventBus } from '../../../../shared/EventBus';
-import { gameBridge } from '../../../../shared/bridge/gameBridge';
+/*
+ * `runtimeGameBridge`, e não `gameBridge`: o segundo só fala com a própria página
+ * (barramento local). Embutido pela Atesteme, ele deixava o jogo MUDO — a partida
+ * inteira acontecia e a plataforma não recebia nem o `GAME_READY`, então o desafio
+ * nunca aprovava nem reprovava. Era o único dos 46 jogos ainda na ponte antiga.
+ */
+import { runtimeGameBridge } from '../../../../shared/bridge/runtimeGameBridge';
 import type { PlatformCommand } from '../../../../shared/contracts/platformCommands';
 import { LEVELS } from '../data/levels';
 import type { AlgorithmCard, AlgorithmLevel } from '../types';
@@ -747,7 +753,7 @@ export class GameScene extends Phaser.Scene {
       this.currentPoints += 5;
       this.emitCorrectAnswer();
       this.emitCheckpoint();
-      gameBridge.emit({
+      runtimeGameBridge.emit({
         type: 'GAME_COMPLETED',
         gameId: GAME_ID,
         stage: this.currentLevel.level,
@@ -1267,14 +1273,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private emitReady() {
-    gameBridge.emit({
+    runtimeGameBridge.emit({
       type: 'GAME_READY',
       gameId: GAME_ID,
     });
   }
 
   private emitCorrectAnswer() {
-    gameBridge.emit({
+    runtimeGameBridge.emit({
       type: 'CORRECT_ANSWER',
       gameId: GAME_ID,
       pointsEarned: 5,
@@ -1302,7 +1308,7 @@ export class GameScene extends Phaser.Scene {
     this.currentLives = Math.max(0, antes - 1);
 
     if (antes > 0 && this.currentLives === 0) {
-      gameBridge.emit({
+      runtimeGameBridge.emit({
         type: 'GAME_OVER',
         gameId: GAME_ID,
         stage: this.currentLevel.level,
@@ -1311,7 +1317,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private emitWrongAnswer() {
-    gameBridge.emit({
+    runtimeGameBridge.emit({
       type: 'WRONG_ANSWER',
       gameId: GAME_ID,
       pointsEarned: -5,
@@ -1323,7 +1329,7 @@ export class GameScene extends Phaser.Scene {
     const placedCount = this.placedOrder.filter((value) => value !== null).length;
     const progress = Math.round((placedCount / this.currentLevel.correctOrder.length) * 100);
 
-    gameBridge.emit({
+    runtimeGameBridge.emit({
       type: 'CHECKPOINT',
       gameId: GAME_ID,
       progress,
@@ -1336,7 +1342,7 @@ export class GameScene extends Phaser.Scene {
 
   private registerPlatformCommands() {
     this.unsubscribePlatformCommands?.();
-    this.unsubscribePlatformCommands = gameBridge.onPlatformCommand((command: PlatformCommand) => {
+    this.unsubscribePlatformCommands = runtimeGameBridge.onCommand((command: PlatformCommand) => {
       switch (command.type) {
         case 'START_GAME':
           if (command.gameId !== GAME_ID) return;
